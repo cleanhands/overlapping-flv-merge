@@ -50,7 +50,7 @@ int main(int argc, char** argv)
 
   if (argc < 3)
   {
-    fprintf(stderr, "You must specify at least two files to merge.\n");
+    fprintf(stderr, "Usage: %s file1 file2 [fileN]...\n", argv[0]);
     return 0;
   }
 

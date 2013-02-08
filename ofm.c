@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #define TAG_SIZE 16024000
+#define TAG_TRIM 3
 
 unsigned int readBodyLength(unsigned char* buf)
 {
@@ -38,13 +39,20 @@ int main(int argc, char** argv)
 {
   FILE *fd;
   unsigned char header[13];
-  int i, ii, headerWritten, searchForMatch;
+  int i, ii, iii, headerWritten, searchForMatch;
   unsigned int timestampOffset = 0, length;
-  unsigned char *ptr1, *ptr2, *ptr3, *ptr4, *tmpptr;
-  ptr1 = (unsigned char*) malloc(TAG_SIZE);
-  ptr2 = (unsigned char*) malloc(TAG_SIZE);
-  ptr3 = (unsigned char*) malloc(TAG_SIZE);
-  ptr4 = (unsigned char*) malloc(TAG_SIZE);
+  unsigned char *tag[TAG_TRIM + 2];
+
+  /* allocate memory for tag pointers minus one */
+  for (i = 0; i < TAG_TRIM + 1; i++)
+  {
+    tag[i] = (unsigned char*) malloc(TAG_SIZE);
+    if (tag[i] == NULL) 
+    {
+      fprintf(stderr, "out of memory\n");
+      return 0;
+    }
+  }
 
   headerWritten = 0;
 
@@ -76,32 +84,32 @@ int main(int argc, char** argv)
       headerWritten = 1;
     }
 
-    ii = 1;
-    while (readTag(ptr1, fd))
+    ii = 0;
+    while (readTag(tag[0], fd))
     {
       if (searchForMatch) 
       {
-        if (checkForTagMatch(ptr1, ptr4))
+        if (checkForTagMatch(tag[0], tag[TAG_TRIM]))
         {
-          timestampOffset = readTime(ptr4) - readTime(ptr1);
+          timestampOffset = readTime(tag[TAG_TRIM]) - readTime(tag[0]);
           searchForMatch = 0;
         }
       }
       else
       {
-        if (ii == 4)
+        if (ii == TAG_TRIM)
         {
-          length = readBodyLength(ptr4) + 15;
-          fwrite(ptr4, 1, length, stdout);
+          length = readBodyLength(tag[TAG_TRIM]) + 15;
+          fwrite(tag[TAG_TRIM], 1, length, stdout);
         }
         if (timestampOffset)
-          writeTime(ptr1, readTime(ptr1) + timestampOffset);
-        tmpptr = ptr4;
-        ptr4 = ptr3;
-        ptr3 = ptr2;
-        ptr2 = ptr1;
-        ptr1 = tmpptr;
-        if (ii < 4)
+          writeTime(tag[0], readTime(tag[0]) + timestampOffset);
+        /* shift buffered tags */
+        for (iii = TAG_TRIM + 1; iii > 0; iii--)
+          tag[iii] = tag[iii - 1];
+        /* recycle written tag */
+        tag[0] = tag[TAG_TRIM + 1];
+        if (ii < TAG_TRIM)
           ii++;
       }
     }

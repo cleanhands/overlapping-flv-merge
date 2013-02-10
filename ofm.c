@@ -1,7 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define TAG_SIZE 16024000
+#define TAG_SIZE 40000
 #define TAG_TRIM 3
+
+struct flvtag {
+  unsigned int length;
+  size_t size;
+  unsigned char *data;
+};
 
 unsigned int readBodyLength(unsigned char* buf)
 {
@@ -41,13 +47,20 @@ int main(int argc, char** argv)
   unsigned char header[13];
   int i, ii, iii, headerWritten, searchForMatch;
   unsigned int timestampOffset = 0, length;
-  unsigned char *tag[TAG_TRIM + 2];
+  struct flvtag *tag[TAG_TRIM + 2];
 
   /* allocate memory for tag pointers minus one */
   for (i = 0; i < TAG_TRIM + 1; i++)
   {
-    tag[i] = (unsigned char*) malloc(TAG_SIZE);
+    tag[i] = malloc(sizeof(*tag[i]));
     if (tag[i] == NULL) 
+    {
+      fprintf(stderr, "out of memory\n");
+      return 0;
+    }
+    tag[i]->data = malloc(TAG_SIZE);
+    tag[i]->size = TAG_SIZE;
+    if (tag[i]->data == NULL) 
     {
       fprintf(stderr, "out of memory\n");
       return 0;
@@ -89,9 +102,9 @@ int main(int argc, char** argv)
     {
       if (searchForMatch) 
       {
-        if (checkForTagMatch(tag[0], tag[TAG_TRIM]))
+        if (checkForTagMatch(tag[0]->data, tag[TAG_TRIM]->data))
         {
-          timestampOffset = readTime(tag[TAG_TRIM]) - readTime(tag[0]);
+          timestampOffset = readTime(tag[TAG_TRIM]->data) - readTime(tag[0]->data);
           searchForMatch = 0;
         }
       }
@@ -99,11 +112,11 @@ int main(int argc, char** argv)
       {
         if (ii == TAG_TRIM)
         {
-          length = readBodyLength(tag[TAG_TRIM]) + 15;
-          fwrite(tag[TAG_TRIM], 1, length, stdout);
+          length = tag[TAG_TRIM]->length + 15;
+          fwrite(tag[TAG_TRIM]->data, 1, length, stdout);
         }
         if (timestampOffset)
-          writeTime(tag[0], readTime(tag[0]) + timestampOffset);
+          writeTime(tag[0]->data, readTime(tag[0]->data) + timestampOffset);
         /* shift buffered tags */
         for (iii = TAG_TRIM + 1; iii > 0; iii--)
           tag[iii] = tag[iii - 1];
@@ -123,21 +136,25 @@ int main(int argc, char** argv)
 
 }
 
-int readTag(unsigned char* tag, FILE* fd)
+int readTag(struct flvtag* tag, FILE* fd)
 {
-  unsigned int bodyLength;
-  if (fread(tag, 1, 11, fd) != 11)
+  if (fread(tag->data, 1, 11, fd) != 11)
   {
     fprintf(stderr, "\r\nReached end of file in tag header.\n");
     return 0;
   }
-  bodyLength = readBodyLength(tag);
-  if (bodyLength + 15 > TAG_SIZE)
+  tag->length = readBodyLength(tag->data);
+  if (tag->length + 15 > tag->size)
   {
-    fprintf(stderr, "Maximum tag size exceeded. Size: %d Max:%d\n", bodyLength + 15, TAG_SIZE);
-    return 0;
+    tag->data = realloc(tag->data, tag->length + 15);
+    tag->size = tag->length + 15;
+    if (tag->data == NULL)
+    {
+      fprintf(stderr, "Error reallocating memory.\n");
+      exit (1);
+    }
   }
-  if (fread(tag + 11, 1, bodyLength + 4, fd) != bodyLength + 4)
+  if (fread(tag->data + 11, 1, tag->length + 4, fd) != tag->length + 4)
   {
     fprintf(stderr, "\r\nReached end of file in tag body.\n");
     return 0;

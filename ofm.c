@@ -51,14 +51,14 @@ int main(int argc, char** argv)
     if (tag[i] == NULL) 
     {
       fprintf(stderr, "out of memory\n");
-      return 0;
+      return 1;
     }
     tag[i]->data = malloc(TAG_SIZE);
     tag[i]->size = TAG_SIZE;
     if (tag[i]->data == NULL) 
     {
       fprintf(stderr, "out of memory\n");
-      return 0;
+      return 1;
     }
   }
 
@@ -67,7 +67,7 @@ int main(int argc, char** argv)
   if (argc < 3)
   {
     fprintf(stderr, "Usage: %s file1 file2 [fileN]...\n", argv[0]);
-    return 0;
+    return 1;
   }
 
   for (i = 1; i < argc; i++)
@@ -77,13 +77,13 @@ int main(int argc, char** argv)
     if (!fd)
     {
       fprintf(stderr, "Failed to open file: %s\n", argv[i]);
-      return 0;
+      return 1;
     }
 
     if (fread(header, 1, 13, fd) != 13 || header[0] != 'F' || header[1] != 'L' || header[2] != 'V' || header[3] != 0x01)
     {
       fprintf(stderr, "%s is not a valid FLV\n", argv[i]);
-      return 0;
+      return 1;
     }
 
     if (!headerWritten)
@@ -129,6 +129,7 @@ int main(int argc, char** argv)
 
   }
 
+  return 0;
 }
 
 int readTag(struct flvtag* tag, FILE* fd)

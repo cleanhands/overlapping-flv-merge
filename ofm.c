@@ -9,11 +9,6 @@ struct flvtag {
   unsigned char *data;
 };
 
-unsigned int readBodyLength(unsigned char* buf)
-{
-  return (buf[1] << 16) | (buf[2] << 8) | buf[3]; 
-}
-
 unsigned int readTime(unsigned char* buf)
 {
   return (buf[7] << 24) | (buf[4] << 16) | (buf[5] << 8) | buf[6];
@@ -28,15 +23,15 @@ void writeTime(unsigned char* buf, int val)
   return;
 }
 
-int checkForTagMatch(unsigned char* buf1, unsigned char* buf2)
+int checkForTagMatch(struct flvtag* tag1, struct flvtag* tag2)
 {
-  if (buf1[0] != buf2[0])
+  if (tag1->data[0] != tag2->data[0])
     return 0;
-  if (readBodyLength(buf1) != readBodyLength(buf2))
+  if (tag1->length != tag2->length)
     return 0;
   unsigned int i;
-  for (i = 11; i < readBodyLength(buf1) + 11; i++)
-    if (buf1[i] != buf2[i])
+  for (i = 11; i < tag1->length + 11; i++)
+    if (tag1->data[i] != tag2->data[i])
       return 0;
   return 1;
 }
@@ -102,7 +97,7 @@ int main(int argc, char** argv)
     {
       if (searchForMatch) 
       {
-        if (checkForTagMatch(tag[0]->data, tag[TAG_TRIM]->data))
+        if (checkForTagMatch(tag[0], tag[TAG_TRIM]))
         {
           timestampOffset = readTime(tag[TAG_TRIM]->data) - readTime(tag[0]->data);
           searchForMatch = 0;
@@ -143,7 +138,7 @@ int readTag(struct flvtag* tag, FILE* fd)
     fprintf(stderr, "\r\nReached end of file in tag header.\n");
     return 0;
   }
-  tag->length = readBodyLength(tag->data);
+  tag->length = (tag->data[1] << 16) | (tag->data[2] << 8) | tag->data[3];
   if (tag->length + 15 > tag->size)
   {
     tag->data = realloc(tag->data, tag->length + 15);

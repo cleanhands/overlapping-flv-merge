@@ -125,6 +125,11 @@ int main(int argc, char** argv)
     {
       fprintf(stderr, "no match found in file: %s\n", argv[i]);
     }
+    else
+    {
+      length = tag[TAG_TRIM]->length + 15;
+      fwrite(tag[TAG_TRIM]->data, 1, length, stdout);
+    }
     searchForMatch = 1;
 
   }

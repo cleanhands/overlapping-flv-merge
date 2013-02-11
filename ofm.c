@@ -14,7 +14,7 @@ unsigned int readTime(unsigned char* buf)
   return (buf[7] << 24) | (buf[4] << 16) | (buf[5] << 8) | buf[6];
 }
 
-void writeTime(unsigned char* buf, int val)
+void writeTime(unsigned char* buf, unsigned int val)
 {
   buf[4] = val >> 16;
   buf[5] = val >> 8;
